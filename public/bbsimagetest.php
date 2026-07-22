@@ -41,7 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image_file'])) {
 // --- 一覧取得 ---
 $select_sth = $dbh->query("SELECT * FROM bbs_entries ORDER BY created_at DESC");
 ?>
-
+<head>
+  <title>画像が投稿できる掲示板</title>
+</head>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
