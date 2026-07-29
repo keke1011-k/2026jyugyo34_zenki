@@ -22,3 +22,14 @@ sudo systemctl enable docker
 
 # ec2-userでsudoなしでDockerコマンドを実行できるようにする
 sudo usermod -aG docker ec2-user
+
+### 【補足】テーブル定義（postsテーブル）
+本システムでは、掲示板のデータを保存するために以下の構造のテーブルを使用しています。
+
+| カラム名 | データ型 | 制約 | 説明 |
+| :--- | :--- | :--- | :--- |
+| `id` | INT | PRIMARY KEY, AUTO_INCREMENT | 投稿の固有番号（主キー）。自動で1から連番が振られます。 |
+| `name` | VARCHAR(255) | NOT NULL | 投稿者の名前（必須）。 |
+| `body` | TEXT | NOT NULL | 投稿の本文（必須）。 |
+| `image_path` | VARCHAR(255)| なし | アップロードされた画像の保存先ファイルパス。画像がない場合は空になります。 |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 投稿日時。データが追加された瞬間の時間が自動で保存されます。 |
