@@ -62,14 +62,12 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- 【追加】スマホ対応の必須設定（Viewport） -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>課題用 掲示板</title>
     <style>
-        /* 【追加】全体をスマホで見やすく、少しモダンなデザインに */
         body { 
             font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; 
-            max-width: 600px; /* パソコンで見ても横に広がりすぎないように制限 */
+            max-width: 600px; 
             margin: 0 auto; 
             padding: 15px; 
             background-color: #f4f5f7;
@@ -78,22 +76,21 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         h1 { font-size: 1.5em; text-align: center; }
 
-        /* 入力フォームのスマホ対応 */
         .form-group { margin-bottom: 15px; }
         input[type="text"], 
         textarea, 
         input[type="file"] {
-            width: 100%; /* スマホ画面いっぱいに広げる */
-            box-sizing: border-box; /* はみ出し防止 */
+            width: 100%; 
+            box-sizing: border-box; 
             padding: 10px;
             margin-top: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 16px; /* 16pxにすることでiPhoneでの勝手なズームを防止 */
+            font-size: 16px; 
         }
         
         button {
-            width: 100%; /* スマホでタップしやすいようにボタンを横幅100%に */
+            width: 100%; 
             padding: 14px;
             background-color: #0066cc;
             color: white;
@@ -104,17 +101,24 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             cursor: pointer;
         }
 
-        /* 投稿一覧のデザイン */
         .post { 
             border: 1px solid #ddd; 
             padding: 15px; 
             margin-bottom: 15px; 
             border-radius: 8px; 
             background-color: #ffffff; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 影をつけて浮き出た感じに */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            transition: background-color 0.5s;
         }
+        
+        .post:target {
+            background-color: #fff9c4;
+            border-color: #fbc02d;
+            box-shadow: 0 0 10px rgba(251, 192, 45, 0.5);
+        }
+
         .post img { 
-            max-width: 100%; /* スマホ画面からはみ出さない設定 */
+            max-width: 100%; 
             height: auto; 
             display: block; 
             margin-top: 10px; 
@@ -136,8 +140,16 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-radius: 4px; 
             border: 1px solid #d9534f; 
         }
+        
+        .anchor-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .anchor-link:hover {
+            text-decoration: underline;
+        }
 
-        /* 画面幅が小さい時（スマホ）向けの微調整 */
         @media (max-width: 500px) {
             body { padding: 10px; }
             .post { padding: 12px; }
@@ -156,7 +168,7 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <label>名前:<br> <input type="text" name="name" required></label>
         </div>
         <div class="form-group">
-            <label>本文:<br> <textarea name="body" rows="4" required></textarea></label>
+            <label>本文 (「&gt;&gt;番号」でレスアンカー):<br> <textarea name="body" rows="4" required></textarea></label>
         </div>
         <div class="form-group">
             <label>画像 (任意 / 5MB以下):<br> <input type="file" name="image" accept="image/*"></label>
@@ -168,13 +180,23 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <h2>投稿一覧</h2>
     <?php foreach ($posts as $post): ?>
-        <div class="post">
+        <div class="post" id="post-<?php echo htmlspecialchars($post['id'], ENT_QUOTES, 'UTF-8'); ?>">
             <div class="meta">
                 No.<?php echo htmlspecialchars($post['id'], ENT_QUOTES, 'UTF-8'); ?> | 
                 <strong><?php echo htmlspecialchars($post['name'], ENT_QUOTES, 'UTF-8'); ?></strong> | 
                 <?php echo htmlspecialchars($post['created_at'], ENT_QUOTES, 'UTF-8'); ?>
             </div>
-            <p><?php echo nl2br(htmlspecialchars($post['body'], ENT_QUOTES, 'UTF-8')); ?></p>
+            <p>
+                <?php 
+                    $safe_body = htmlspecialchars($post['body'], ENT_QUOTES, 'UTF-8');
+                    $anchor_body = preg_replace(
+                        '/&gt;&gt;([0-9]+)/', 
+                        '<a href="#post-$1" class="anchor-link">&gt;&gt;$1</a>', 
+                        $safe_body
+                    );
+                    echo nl2br($anchor_body); 
+                ?>
+            </p>
             <?php if ($post['image_path']): ?>
                 <img src="<?php echo htmlspecialchars($post['image_path'], ENT_QUOTES, 'UTF-8'); ?>" alt="投稿画像">
             <?php endif; ?>
