@@ -25,7 +25,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $body = $_POST['body'] ?? '';
     $image_path = null;
 
-    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+    // JavaScriptでBase64変換された画像データが送信された場合の処理
+    if (!empty($_POST['image_base64'])) {
+        $base64_data = $_POST['image_base64'];
+        
+        // "data:image/jpeg;base64," のようなプレフィックスを取り除く
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64_data, $type)) {
+            $data = substr($base64_data, strpos($base64_data, ',') + 1);
+            $data = base64_decode($data); // 文字列から画像データに復元
+            
+            // デコード後のサイズが5MB以下かチェック
+            if (strlen($data) <= 5242880) {
+                $upload_dir = 'images/';
+                $filename = uniqid() . '.jpg';
+                $target_file = $upload_dir . $filename;
+                
+                // サーバーに画像ファイルとして保存
+                if (file_put_contents($target_file, $data)) {
+                    $image_path = $target_file;
+                }
+            } else {
+                $error_msg = 'エラー：画像サイズが大きすぎます。';
+            }
+        }
+    } 
+    // JSが動かなかった場合の通常のファイルアップロード処理（フォールバック）
+    elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         if ($_FILES['image']['size'] <= 5242880) {
             $upload_dir = 'images/';
             $filename = uniqid() . '_' . basename($_FILES['image']['name']);
@@ -171,7 +196,12 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <label>本文 (「&gt;&gt;番号」でレスアンカー):<br> <textarea name="body" rows="4" required></textarea></label>
         </div>
         <div class="form-group">
-            <label>画像 (任意 / 5MB以下):<br> <input type="file" name="image" accept="image/*"></label>
+            <label>画像 (自動縮小されます):<br> <input type="file" name="image" accept="image/*" id="imageInput"></label>
+            
+            <!-- 【追加】Base64データを格納するための隠しフィールド -->
+            <input type="hidden" name="image_base64" id="imageBase64Input">
+            <!-- 【追加】画像を描画・縮小するための隠しCanvas -->
+            <canvas id="imageCanvas" style="display:none;"></canvas>
         </div>
         <button type="submit">投稿する</button>
     </form>
@@ -202,5 +232,47 @@ $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </div>
     <?php endforeach; ?>
+
+    <script>
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 画像縮小処理 & base64のテキストに変換して name="image_base64" なinput要素につっこむ
+            const imageBase64Input = document.getElementById("imageBase64Input"); // base64を送るようのinput
+            const canvas = document.getElementById("imageCanvas"); // 描画するcanvas
+            const reader = new FileReader();
+            const image = new Image();
+            
+            reader.onload = () => { // ファイルの読み込み完了したら動く処理を指定
+                image.onload = () => { // 画像として読み込み完了したら動く処理を指定
+                    // 元の縦横比を保ったまま縮小するサイズを決めてcanvasの縦横に指定する
+                    const originalWidth = image.naturalWidth; // 元画像の横幅
+                    const originalHeight = image.naturalHeight; // 元画像の高さ
+                    const maxLength = 2000; // 横幅も高さも2000px以下に縮小するものとする
+                    
+                    if (originalWidth <= maxLength && originalHeight <= maxLength) { // どちらもmaxLength以下の場合そのまま
+                        canvas.width = originalWidth;
+                        canvas.height = originalHeight;
+                    } else if (originalWidth > originalHeight) { // 横長画像の場合
+                        canvas.width = maxLength;
+                        canvas.height = maxLength * originalHeight / originalWidth;
+                    } else { // 縦長画像の場合
+                        canvas.width = maxLength * originalWidth / originalHeight;
+                        canvas.height = maxLength;
+                    }
+
+                    // canvasに実際に画像を描画 (canvasはdisplay:noneで隠れているためわかりにくいが...)
+                    const context = canvas.getContext("2d");
+                    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+                    // canvasの内容をjpeg形式のbase64に変換しinputのvalueに設定
+                    imageBase64Input.value = canvas.toDataURL('image/jpeg', 0.9);
+                };
+                image.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
 </body>
 </html>
